@@ -1,18 +1,6 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+name: Java CI
 
-name: Scala CI
-
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-
-permissions:
-  contents: read
+on: [push]
 
 jobs:
   build:
@@ -20,15 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v1
     - name: Set up JDK 11
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v1
       with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: 'mvn'
-    - name: Run tests
-      run: mvn clean install
-      # Optional: This step uploads information to the GitHub dependency graph and unblocking Dependabot alerts for the repository
-    - name: Upload dependency graph
-      uses: scalacenter/sbt-dependency-submission@ab086b50c947c9774b70f39fc7f6e20ca2706c91
+        java-version: 11
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+    - name: Build Data Loader
+      run: cd evaluation/SQLtoNOSQL/ && mvn -B package --file pom.xml
