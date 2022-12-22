@@ -519,9 +519,14 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         this.show(jDF)
 
         // example prestoURI = "jdbc:presto://localhost:8080"
+
+        print("\n Farhad Test")
         val connection = DriverManager.getConnection(prestoURI, "presto_user", null) // null: properties
+        print(prestoURI)
 
         try {
+
+              print("\n Farhad Test Init")
             val st = connection.createStatement
             val resultSet = st.executeQuery(query)
 
