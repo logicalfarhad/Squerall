@@ -18,7 +18,6 @@ jobs:
       with:
         java-version: 11
         distribution: 'temurin'
-        cache: 'mvn'
     - name: Build Squerall
       run: mvn -B package --file pom.xml
     - name: Build Data Loader
