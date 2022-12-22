@@ -217,7 +217,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
     }
 
     def join(joins: ArrayListMultimap[String, (String, String)], prefixes: Map[String, String], star_df: Map[String, DataQueryFrame]): DataQueryFrame = {
-        import scala.collection.JavaConversions._
+        import scala.collection.JavaConverters
         import scala.collection.mutable.ListBuffer
 
         var pendingJoins = mutable.Queue[(String, (String, String))]()
@@ -246,8 +246,8 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
             if (firstTime) { // First time look for joins in the join hashmap
                 logger.info("...that's the FIRST JOIN")
-                seenDF.add((table1, jVal))
-                seenDF.add((table2, "ID"))
+                seenDF+=((table1, jVal))
+                seenDF+=((table2, "ID"))
                 firstTime = false
 
                 // Join level 1
@@ -265,7 +265,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
                     jDQF.addJoin((omitQuestionMark(table1),omitQuestionMark(table2),leftJVar,rightJVar))
                     //jDQF = jDQF.join(df2, jDQF.col(leftJVar).equalTo(df2.col(rightJVar)))
 
-                    seenDF.add((table2,"ID"))
+                    seenDF+=((table2,"ID"))
 
                 } else if (!dfs_only.contains(table1) && dfs_only.contains(table2)) {
                     logger.info("...we can join (this direction >>)")
@@ -275,7 +275,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
                     jDQF.addJoin((omitQuestionMark(table1),omitQuestionMark(table2),leftJVar,rightJVar))
                     //jDQF = df1.join(jDQF, df1.col(leftJVar).equalTo(jDQF.col(rightJVar)))
 
-                    seenDF.add((table1,jVal))
+                    seenDF+=((table1,jVal))
 
                 } else if (!dfs_only.contains(table1) && !dfs_only.contains(table2)) {
                     logger.info("...no join possible -> GOING TO THE QUEUE")
@@ -305,13 +305,13 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
                 val leftJVar = omitQuestionMark(table1) + "_" + omitNamespace(jVal) + "_" + ns
                 val rightJVar = omitQuestionMark(table2) + "_ID"
                 jDQF.addJoin((omitQuestionMark(table1),omitQuestionMark(table2),leftJVar,rightJVar))
-                seenDF.add((table2,"ID"))
+                seenDF+=((table2,"ID"))
             } else if (!dfs_only.contains(table1) && dfs_only.contains(table2)) {
                 val leftJVar = omitQuestionMark(table1) + "_" + omitNamespace(jVal) + "_" + ns
                 val rightJVar = omitQuestionMark(table2) + "_ID"
                 jDQF.addJoin((omitQuestionMark(table1),omitQuestionMark(table2),leftJVar,rightJVar))
 
-                seenDF.add((table1,jVal))
+                seenDF+=((table1,jVal))
             } else if (!dfs_only.contains(table1) && !dfs_only.contains(table2)) {
                 pendingJoins.enqueue((table1, (table2, jVal)))
             }
@@ -350,9 +350,6 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         jDQF.asInstanceOf[DataQueryFrame]
     }
 
-    def schemaOf(jDF: DataQueryFrame) = {
-        null // TODO: prntiSchema in Presto?
-    }
 
     def count(jDQF: DataQueryFrame): Long = {
         -12345789 // TODO: think about COUNT in Presto
@@ -372,14 +369,14 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         jDQF.asInstanceOf[DataQueryFrame]
     }
 
-    def groupBy(jDQF: Any, groupBys: (ListBuffer[String], Set[(String,String)])): DataQueryFrame = {
+    def groupBy(jDQF: Any, groupBys: (ListBuffer[String], mutable.Set[(String,String)])): DataQueryFrame = {
 
         val groupByVars = groupBys._1
         val aggregationFunctions = groupBys._2
 
         logger.info("aggregationFunctions: " + aggregationFunctions)
 
-        var aggSet : Set[(String,String)] = Set()
+        var aggSet : mutable.Set[(String,String)] = mutable.Set()
         for (af <- aggregationFunctions){
             aggSet += ((af._1,af._2))
         }
@@ -414,7 +411,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
         // Prepare the sub-selects
         var subSelects : Map[String,(String,String)] = Map()
-        var castedToVarchar : Set[String] = Set()
+        var castedToVarchar : mutable.Set[String] = mutable.Set()
 
         for (s <- selects) {
             var select = s._1
@@ -448,7 +445,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         val distinct = if(project._2) " distinct " else " "
         var query = s"SELECT$distinct${project._1.mkString(",")} FROM ("
 
-        val joinedSelect : Set[String] = Set()
+        val joinedSelect : mutable.Set[String] = mutable.Set()
         // Construct the SELECT & JOIN .. ON
 
         for (j <- joins) {

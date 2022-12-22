@@ -1,26 +1,20 @@
 package org.squerall
 
-import java.util
-
 import com.google.common.collect.ArrayListMultimap
 import com.typesafe.scalalogging.Logger
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
-import org.apache.jena.rdf.model.ModelFactory
-import org.apache.jena.util.FileManager
 
+import java.util
 import scala.collection.mutable
 //import org.mongodb.scala._
 
 /**
   * Created by mmami on 26.07.17.
   */
-class Helpers() {
-
-}
 
 object Helpers {
 
-    val logger = Logger("Squerall")
+    val logger: Logger = Logger("Squerall")
 
     def invertMap(prolog: util.Map[String, String]): Map[String, String] = {
         var star_df : Map[String, String] = Map.empty
@@ -118,8 +112,6 @@ object Helpers {
     }
 
     def getID(sourcePath: String, mappingsFile: String): String = {
-        //var mappingsFile = Config.get("mappings.file")
-
         val getID = "PREFIX rml: <http://semweb.mmlab.be/ns/rml#>" +
             "PREFIX rr: <http://www.w3.org/ns/r2rml#>" +
             "PREFIX foaf: <http://xmlns.com/foaf/spec/>" +
@@ -130,11 +122,9 @@ object Helpers {
                 "?sm rr:template ?t " +
             "}"
 
-        val in = FileManager.get().open(mappingsFile)
 
-        val model = ModelFactory.createDefaultModel()
-        model.read(in, null, "TURTLE")
-
+        import org.apache.jena.riot.RDFDataMgr
+        val model = RDFDataMgr.loadModel(mappingsFile)
         var id = ""
 
         val query1 = QueryFactory.create(getID)

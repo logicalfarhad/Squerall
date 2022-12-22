@@ -1,7 +1,5 @@
 package org.squerall
 
-import java.util
-
 import com.google.common.collect.ArrayListMultimap
 import com.mongodb.spark.config.ReadConfig
 import com.typesafe.scalalogging.Logger
@@ -10,6 +8,7 @@ import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.{AnalysisException, Column, DataFrame, SparkSession}
 import org.squerall.Helpers._
 
+import java.util
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -99,9 +98,9 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                 case "jdbc" =>
                     df = spark.read.format("jdbc").options(options).load()
                 case "rdf" =>
-                    import collection.JavaConversions._
+                    import collection.JavaConverters._
                     val rdf = new NTtoDF()
-                    df = rdf.options(options).read(sourcePath, sparkURI).toDF()
+                    df = rdf.options(options.asJava).read(sourcePath, sparkURI).toDF()
                 case _ =>
             }
 
@@ -245,7 +244,6 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
     }
 
     def join(joins: ArrayListMultimap[String, (String, String)], prefixes: Map[String, String], star_df: Map[String, DataFrame]): DataFrame = {
-        import scala.collection.JavaConversions._
         import scala.collection.mutable.ListBuffer
 
         var pendingJoins = mutable.Queue[(String, (String, String))]()
@@ -275,8 +273,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
 
             if (firstTime) { // First time look for joins in the join hashmap
                 logger.info("...that's the FIRST JOIN")
-                seenDF.add((op1, jVal))
-                seenDF.add((op2, "ID"))
+                seenDF+=((op1, jVal))
+                seenDF+=((op2, "ID"))
                 firstTime = false
 
                 // Join level 1
@@ -298,7 +296,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                     val rightJVar = omitQuestionMark(op2) + "_ID"
                     jDF = jDF.join(df2, jDF.col(leftJVar).equalTo(df2.col(rightJVar)))
 
-                    seenDF.add((op2,"ID"))
+                    seenDF+=((op2,"ID"))
 
                 } else if (!dfs_only.contains(op1) && dfs_only.contains(op2)) {
                     logger.info("...we can join (this direction >>)")
@@ -307,7 +305,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                     val rightJVar = omitQuestionMark(op2) + "_ID"
                     jDF = df1.join(jDF, df1.col(leftJVar).equalTo(jDF.col(rightJVar)))
 
-                    seenDF.add((op1,jVal))
+                    seenDF+=((op1,jVal))
 
                 } else if (!dfs_only.contains(op1) && !dfs_only.contains(op2)) {
                     logger.info("...no join possible -> GOING TO THE QUEUE")
@@ -340,14 +338,14 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                 jDF = jDF.join(df2, jDF.col(leftJVar).equalTo(df2.col(rightJVar))) // deep-left
                 //jDF = df2.join(jDF, jDF.col(leftJVar).equalTo(df2.col(rightJVar)))
 
-                seenDF.add((op2,"ID"))
+                seenDF+=((op2,"ID"))
             } else if (!dfs_only.contains(op1) && dfs_only.contains(op2)) {
                 val leftJVar = omitQuestionMark(op1) + "_" + omitNamespace(jVal) + "_" + ns
                 val rightJVar = omitQuestionMark(op2) + "_ID"
                 jDF = jDF.join(df1, df1.col(leftJVar).equalTo(jDF.col(rightJVar))) // deep-left
                 //jDF = df1.join(jDF, df1.col(leftJVar).equalTo(jDF.col(rightJVar)))
 
-                seenDF.add((op1,jVal))
+                seenDF+=((op1,jVal))
             } else if (!dfs_only.contains(op1) && !dfs_only.contains(op2)) {
                 pendingJoins.enqueue((op1, (op2, jVal)))
             }
@@ -359,7 +357,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
     }
 
     def joinReordered(joins: ArrayListMultimap[String, (String, String)], prefixes: Map[String, String], star_df: Map[String, DataFrame], startingJoin: (String, (String, String)), starWeights: Map[String, Double]): DataFrame = {
-        import scala.collection.JavaConversions._
+        import scala.collection.JavaConverters._
         import scala.collection.mutable.ListBuffer
 
         val seenDF : ListBuffer[(String,String)] = ListBuffer()
@@ -376,8 +374,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
 
         logger.info(s"-> DOING FIRST JOIN ($op1 $joinSymbol $op2) USING $jVal (namespace: $ns)")
 
-        seenDF.add((op1, jVal))
-        seenDF.add((op2, "ID")) // TODO: implement join var in the right side too
+        seenDF+=((op1, jVal))
+        seenDF+=((op2, "ID")) // TODO: implement join var in the right side too
 
         // Join level 1
         val leftJVar = omitQuestionMark(op1) + "_" + omitNamespace(jVal) + "_" + ns
@@ -389,16 +387,18 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
         logger.info("...done!")
 
         var joinsMap : Map[(String,String),String] = Map()
-        for (jj <- joins.entries()) {
+
+        joins.entries().asScala.foreach(jj=>{
             joinsMap += (jj.getKey, jj.getValue._1) -> jj.getValue._2
-        }
+        })
+
         val seenDF1 : mutable.Set[(String,String)] =  mutable.Set()
         for (s <- seenDF) {
             seenDF1 += s
         }
 
         logger.info("joinsMap: " + joinsMap)
-        while(joinsMap.size() > 0) {
+        while(joinsMap.asJava.size() > 0) {
 
             val dfs_only = seenDF.map(_._1)
             logger.info(s"-> Looking for join(s) that join(s) with: $dfs_only")
@@ -471,7 +471,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                     logger.info(s"$leftJVar XXX $rightJVar")
                     jDF = jDF.join(df2, jDF.col(leftJVar).equalTo(df2.col(rightJVar)))
 
-                    seenDF.add((op2,"ID"))
+                    seenDF+=((op2,"ID"))
                 } else if (joinSide.equals("op1")) {
                     logger.info("...we can join (this direction <<) ")
 
@@ -479,7 +479,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                     val rightJVar = omitQuestionMark(op2) + "_ID"
                     jDF = df1.join(jDF, df1.col(leftJVar).equalTo(jDF.col(rightJVar)))
 
-                    seenDF.add((op1,jVal))
+                    seenDF+=((op1,jVal))
                 }
             }
             logger.info(s"-> Fully joined: $seenDF \n")

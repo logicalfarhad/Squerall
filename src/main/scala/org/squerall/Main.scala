@@ -8,12 +8,12 @@ import org.squerall.model.DataQueryFrame
   */
 object Main extends App {
 
-    var queryFile = args(0)
-    val mappingsFile = args(1)
-    val configFile = args(2)
-    val executorID = args(3)
-    val reorderJoin = args(4)
-    val queryEngine = args(5)
+    var queryFile = "/home/sali/root/input/queries/Q2.sparql"
+    val mappingsFile = "/home/sali/root/input/mappings.ttl"
+    val configFile = "/home/sali/root/input/config"
+    val executorID = "local[*]"
+    val reorderJoin = "n"
+    val queryEngine = "s"
 
     if (queryEngine == "s") { // Spark as query engine
         val executor : SparkExecutor = new SparkExecutor(executorID, mappingsFile)

@@ -6,6 +6,7 @@ package org.squerall
 import com.typesafe.scalalogging.Logger
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
 import org.apache.jena.rdf.model.ModelFactory
+import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.util.FileManager
 import org.apache.spark.sql.AnalysisException
 import play.api.libs.functional.syntax._
@@ -130,15 +131,7 @@ class Mapper (mappingsFile: String) {
 
         logger.info("...for this, the following query will be executed: " + queryString + " on " + mappingsFile)
         val query = QueryFactory.create(queryString)
-
-        val in = FileManager.get().open(mappingsFile)
-        if (in == null) {
-            throw new IllegalArgumentException("File: " + mappingsFile + " not found")
-        }
-
-        val model = ModelFactory.createDefaultModel()
-        model.read(in, null, "TURTLE")
-
+        val model = RDFDataMgr.loadModel(mappingsFile)
         val qe = QueryExecutionFactory.create(query, model)
         val results = qe.execSelect()
 
