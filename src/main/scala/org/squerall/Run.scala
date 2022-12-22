@@ -220,7 +220,7 @@ class Run[A](executor: QueryExecutor[A]) {
       val starWeights = pl.sortStarsByWeight(starDataTypesMap, starNbrFilters, configFile)
       logger.info(s"- Stars weighted (performance + nbr of filters): $starWeights \n")
 
-      val sortedScoredJoins = pl.reorder(joins, starDataTypesMap, starNbrFilters, starWeights, configFile)
+      val sortedScoredJoins = pl.reorder(joins, starWeights)
       logger.info(s"- Sorted scored joins: $sortedScoredJoins")
       val startingJoin = sortedScoredJoins.head
 

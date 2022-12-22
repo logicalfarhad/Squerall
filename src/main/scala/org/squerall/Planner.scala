@@ -17,7 +17,7 @@ import scala.collection.mutable.ListBuffer
  */
 class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with mutable.MultiMap[String, (String, String)]) {
 
-  val logger = Logger("Squerall")
+  val logger: Logger = Logger("Squerall")
 
   def getNeededPredicates(star_predicate_var: mutable.HashMap[(String, String), String], joins: ArrayListMultimap[String, (String, String)], select_vars: util.List[String], groupBys: (ListBuffer[String], mutable.Set[(String, String)]), prefixes: Map[String, String]): (mutable.Set[String], mutable.Set[(String, String)]) = {
 
@@ -32,7 +32,7 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
 
     logger.info("--> All (left & right) join operands: " + join_left_right_vars)
 
-    for (t <- star_predicate_var) {
+    star_predicate_var.foreach(t => {
       val s_p = t._1
       val o = t._2
 
@@ -52,8 +52,7 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
           predicates.add(s_p._2)
         }
       }
-    }
-
+    })
     (predicates, predicatesForSelect)
   }
 
@@ -67,10 +66,10 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
     val joinedToFlag: mutable.Set[String] = mutable.Set()
     val joinedFromFlag: mutable.Set[String] = mutable.Set()
 
-    for (i <- keys.indices) {
+    keys.indices.foreach(i => {
       val currentSubject = keys(i)
       val valueSet = stars(currentSubject)
-      for (p_o <- valueSet) {
+      valueSet.foreach(p_o => {
         val o = p_o._2
         if (keys.contains(o)) { // A previous star of o
           val p = p_o._1
@@ -79,19 +78,16 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
           joinedToFlag.add(o)
           joinedFromFlag.add(currentSubject)
         }
-      }
-    }
-
+      })
+    })
     (joins, joinedToFlag, joinedFromFlag, joinPairs)
   }
 
-  def reorder(joins: ArrayListMultimap[String, (String, String)], starDataTypesMap: Map[String, mutable.Set[String]], starNbrFilters: Map[String, Integer], starWeights: Map[String, Double], configFile: String): ListMap[(String, String), Double] = {
-
-    //var configFile = Config.get("datasets.weights")
+  def reorder(joins: ArrayListMultimap[String, (String, String)], starWeights: Map[String, Double]): ListMap[(String, String), Double] = {
 
     logger.info("...REORDERING JOINS, if needed...")
 
-    var joinsToReorder: ListBuffer[(String, String)] = ListBuffer()
+    val joinsToReorder: ListBuffer[(String, String)] = ListBuffer()
 
     joins.entries().forEach(j => {
       joinsToReorder += ((j.getKey, j.getValue._1))
@@ -127,10 +123,10 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
     val weights = (Json.parse(configJSON) \ "weights").as[Seq[ConfigObject]]
 
     var scoresByDatasource: Map[String, Double] = Map()
-    for (w <- weights) {
-      scoresByDatasource += w.datasource -> w.weight
-    }
 
+    weights.foreach(w => {
+      scoresByDatasource += w.datasource -> w.weight
+    })
     logger.info(s"- We use the following scores of the data source types: $scoresByDatasource")
 
     val scores = starScores(starDataTypesMap, scoresByDatasource, filters)
@@ -143,7 +139,7 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
 
     var datasourceTypeWeight = 0.0 // Coucou!
 
-    for (s <- starDataTypesMap) {
+    starDataTypesMap.foreach(s => {
       val star = s._1 // eg. ?r
       val datasourceTypeURI_s = s._2 // eg. http://purl.org/db/nosql#cassandra
 
@@ -161,8 +157,7 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
       }
       // else, we keep 0, as we are assuming if there are more than 1 data sources, queryig & union-ing them would be expensive
       scores += (star -> datasourceTypeWeight)
-    }
-
+    })
     scores
   }
 }

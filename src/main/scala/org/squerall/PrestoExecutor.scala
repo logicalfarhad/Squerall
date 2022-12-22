@@ -376,10 +376,13 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
         logger.info("aggregationFunctions: " + aggregationFunctions)
 
-        var aggSet : mutable.Set[(String,String)] = mutable.Set()
-        for (af <- aggregationFunctions){
+        val aggSet: mutable.Set[(String, String)] = mutable.Set()
+
+        aggregationFunctions.foreach(af=>{
             aggSet += ((af._1,af._2))
-        }
+        })
+
+
         val agg = aggSet.toList
 
         jDQF.asInstanceOf[DataQueryFrame].addGroupBy(groupByVars)
@@ -413,7 +416,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         var subSelects : Map[String,(String,String)] = Map()
         var castedToVarchar : mutable.Set[String] = mutable.Set()
 
-        for (s <- selects) {
+        selects.foreach(s=>{
             var select = s._1
 
             if (transformations.nonEmpty) {
@@ -440,15 +443,15 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
             val from = s._2
             val tableAlias = s._3
             subSelects += (tableAlias -> (select,from))
-        }
+        })
+
 
         val distinct = if(project._2) " distinct " else " "
         var query = s"SELECT$distinct${project._1.mkString(",")} FROM ("
 
         val joinedSelect : mutable.Set[String] = mutable.Set()
         // Construct the SELECT & JOIN .. ON
-
-        for (j <- joins) {
+        joins.foreach(j=>{
             val leftTable = j._1
             val rightTable = j._2
 
@@ -496,7 +499,8 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
             }
 
             query += s"\nON $leftVarFull=$rightVarFull"
-        }
+        })
+
         query += "\n)"
         if (filters.nonEmpty) query += s"\nWHERE ${filters.mkString(" AND ").replace("\"","\'")}"
         if (groupBy.nonEmpty) query += s"\nGROUP BY ${groupBy.mkString(",")}"

@@ -14,6 +14,6 @@ object Config {
 
         val value = ConfigFactory.load().getString(key)
 
-        return value
+        value
     }
 }
