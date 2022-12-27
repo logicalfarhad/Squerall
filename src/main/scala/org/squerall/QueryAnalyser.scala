@@ -63,13 +63,9 @@ class QueryAnalyser(query: String) {
     var orderBys: mutable.Set[(String, String)] = mutable.Set()
 
     if (q.hasOrderBy) {
-      val orderBy = q.getOrderBy.iterator()
-
-      while (orderBy.hasNext) {
-        val it = orderBy.next()
-
+      q.getOrderBy.forEach(it => {
         orderBys += ((it.direction.toString, it.expression.toString))
-      }
+      })
     } else
       orderBys = null
 
@@ -130,7 +126,7 @@ class QueryAnalyser(query: String) {
     // Save [star]_[predicate]
     val star_pred_var: mutable.HashMap[(String, String), String] = mutable.HashMap()
 
-    for (i <- triples.indices) { //i <- 0 until triples.length
+    triples.indices.foreach(i => { //i <- 0 until triples.length
       val triple = triples(i).trim
 
       logger.info(s"Triple: $triple")
@@ -156,7 +152,7 @@ class QueryAnalyser(query: String) {
           star_pred_var.put((sbj, t(0)), t(1))
         }
       }
-    }
+    })
 
     (stars, star_pred_var)
     // TODO: Support OPTIONAL
@@ -165,9 +161,10 @@ class QueryAnalyser(query: String) {
   def getTransformations(trans: String): (Map[String, (String, Array[String])], Map[String, Array[String]]) = {
     // Transformations
     val transformations = trans.trim().substring(1).split("&&") // [?k?a.l.+60, ?a?l.r.toInt]
-    var transmap_left: Map[String, (String, Array[String])] = Map.empty
-    var transmap_right: Map[String, Array[String]] = Map.empty
-    for (t <- transformations) { // E.g. ?a?l.r.toInt.scl[61]
+    var transmap_left: Map[String, (String, Array[String])] = Map()
+    var transmap_right: Map[String, Array[String]] = Map()
+
+    transformations.foreach(t => { // E.g. ?a?l.r.toInt.scl[61]
       val tbits = t.trim.split("\\.", 2) // E.g.[?a?l, r.toInt.scl(_+61)]
       val vars = tbits(0).substring(1).split("\\?") // [a, l]
       val operation = tbits(1) // E.g. r.toInt.scl(_+60)
@@ -178,8 +175,7 @@ class QueryAnalyser(query: String) {
         transmap_left += (vars(0) -> (vars(1), functions))
       else
         transmap_right += (vars(1) -> functions)
-    }
-
+    })
     (transmap_left, transmap_right)
   }
 

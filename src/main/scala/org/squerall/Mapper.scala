@@ -96,23 +96,23 @@ class Mapper(mappingsFile: String) {
     logger.info("...with the (Predicate,Object) pairs: " + predicates_objects)
 
 
-      predicates_objects.foreach(v=>{
-          val predicate = v._1
+    predicates_objects.foreach(v => {
+      val predicate = v._1
 
-          if (predicate == "rdf:type" || predicate == "a") {
-              logger.info("...of class: " + v._2)
-              listOfPredicatesForQuery += "?mp rr:subjectMap ?sm . ?sm rr:class " + v._2 + " . "
+      if (predicate == "rdf:type" || predicate == "a") {
+        logger.info("...of class: " + v._2)
+        listOfPredicatesForQuery += "?mp rr:subjectMap ?sm . ?sm rr:class " + v._2 + " . "
 
-          } else {
-              listOfPredicatesForQuery += "?mp rr:predicateObjectMap ?pom" + temp + " . " +
-                "?pom" + temp + " rr:predicate " + predicate + " . " +
-                "?pom" + temp + " rr:objectMap ?om" + temp + " . "
+      } else {
+        listOfPredicatesForQuery += "?mp rr:predicateObjectMap ?pom" + temp + " . " +
+          "?pom" + temp + " rr:predicate " + predicate + " . " +
+          "?pom" + temp + " rr:objectMap ?om" + temp + " . "
 
-              listOfPredicates.add(predicate)
-              temp += 1
+        listOfPredicates.add(predicate)
+        temp += 1
 
-          }
-      })
+      }
+    })
 
 
     val queryString = "PREFIX rml: <http://semweb.mmlab.be/ns/rml#>" +
@@ -143,7 +143,8 @@ class Mapper(mappingsFile: String) {
       val predicate_transformations: mutable.HashMap[String, (String, Boolean)] = mutable.HashMap()
 
       // We will look for predicate transformations (subject transformations later on)
-      for (p <- listOfPredicates) {
+
+      listOfPredicates.foreach(p => {
         val getAttributeOfPredicate = "PREFIX rml: <http://semweb.mmlab.be/ns/rml#> " +
           "PREFIX rr: <http://www.w3.org/ns/r2rml#>" +
           "PREFIX foaf: <http://xmlns.com/foaf/spec/>" +
@@ -222,7 +223,7 @@ class Mapper(mappingsFile: String) {
 
           predicate_attribute.put(p, attr)
         }
-      }
+      })
 
       // We will look for subject transformations
       val getAttributeOfPredicate = "PREFIX rml: <http://semweb.mmlab.be/ns/rml#> " +

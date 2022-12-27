@@ -61,7 +61,7 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
     val keys = stars.keySet.toSeq
     logger.info("Stars: " + keys.toString())
     val joins: ArrayListMultimap[String, (String, String)] = ArrayListMultimap.create[String, (String, String)]()
-    var joinPairs: Map[(String, String), String] = Map.empty
+    var joinPairs: Map[(String, String), String] = Map()
 
     val joinedToFlag: mutable.Set[String] = mutable.Set()
     val joinedFromFlag: mutable.Set[String] = mutable.Set()

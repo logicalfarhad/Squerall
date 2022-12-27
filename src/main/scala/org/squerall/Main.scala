@@ -1,7 +1,6 @@
 package org.squerall
 
 import org.apache.spark.sql.DataFrame
-import org.squerall.model.DataQueryFrame
 
 /**
   * Created by mmami on 26.01.17.
