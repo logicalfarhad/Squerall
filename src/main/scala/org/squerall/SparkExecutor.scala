@@ -2,6 +2,7 @@ package org.squerall
 
 import com.google.common.collect.ArrayListMultimap
 import com.mongodb.spark.config.ReadConfig
+import com.mongodb.spark.sql.toSparkSessionFunctions
 import com.typesafe.scalalogging.Logger
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
@@ -37,6 +38,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
         ): (DataFrame, Integer, String) = {
 
         val spark = SparkSession.builder.master(sparkURI).appName("Squerall").getOrCreate
+        spark.conf.set(s"spark.sql.catalog.productCat", "com.datastax.spark.connector.datasource.CassandraCatalog")
         //TODO: get from the function if there is a relevant data source that requires setting config to SparkSession
 
         var finalDF : DataFrame = null
@@ -85,7 +87,9 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                 case "csv" => df = spark.read.options(options).csv(sourcePath)
                 case "parquet" => df = spark.read.options(options).parquet(sourcePath)
                 case "cassandra" =>
-                    df = spark.read.format("org.apache.spark.sql.cassandra").options(options).load
+                    //df = spark.read.format("org.apache.spark.sql.cassandra").options(options).load
+                    //df = spark.read.cassandraFormat.options(options).load()
+                    df = spark.read.table("productCat.db.product")
                 case "elasticsearch" =>
                     df = spark.read.format("org.elasticsearch.spark.sql").options(options).load
                 case "mongodb" =>
@@ -93,8 +97,10 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
                     val values = options.values.toList
                     val mongoConf = if (values.length == 4) makeMongoURI(values(0), values(1), values(2), values(3))
                                     else makeMongoURI(values(0), values(1), values(2), null)
-                    val mongoOptions: ReadConfig = ReadConfig(Map("uri" -> mongoConf, "partitioner" -> "MongoPaginateBySizePartitioner"))
-                    df = spark.read.format("com.mongodb.spark.sql").options(mongoOptions.asOptions).load
+                 //  val mongoOptions: ReadConfig = ReadConfig(Map("uri" -> mongoConf, "partitioner" -> "MongoPaginateBySizePartitioner"))
+                  //  df = spark.read.format("com.mongodb.spark.sql").options(mongoOptions.asOptions).load
+
+                    df = spark.loadFromMongoDB(ReadConfig(Map("uri" -> "mongodb://127.0.0.1/bsbm.offers")))
                 case "jdbc" =>
                     df = spark.read.format("jdbc").options(options).load()
                 case "rdf" =>

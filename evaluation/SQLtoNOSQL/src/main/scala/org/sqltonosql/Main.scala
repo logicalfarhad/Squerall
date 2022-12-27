@@ -5,9 +5,9 @@ import io.gatling.jsonpath._
 import org.sqltonosql.loaders.Loader
 
 object Main extends App {
-  val inputSQLDump = args(0) // /path/to/08Offer.sql
-  val entityName = args(1) // e.g. "Offer"
-  val configFile = args(2) // "/path to config file containing how to access database to store Offer, see evaluation/ folder for example "
+  val inputSQLDump = "/home/sali/data/input/04Product.sql"// /path/to/08Offer.sql
+  val entityName = "Product" // e.g. "Offer"
+  val configFile = "/home/sali/root/input/config" // "/path to config file containing how to access database to store Offer, see evaluation/ folder for example "
 
   val fileSource = scala.io.Source.fromFile(configFile)
   val fileContent = fileSource.getLines().mkString
