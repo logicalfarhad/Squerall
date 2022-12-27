@@ -63,6 +63,13 @@
             <artifactId>mongo-spark-connector_${scala.compat.version}</artifactId>
             <version>3.0.2</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.datastax.cassandra/cassandra-driver-core -->
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-core</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
@@ -121,12 +128,7 @@
             <version>3.9.5</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
-        <dependency>
-            <groupId>joda-time</groupId>
-            <artifactId>joda-time</artifactId>
-            <version>2.12.2</version>
-        </dependency>
+
 
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -140,13 +142,6 @@
             <groupId>org.dizitart</groupId>
             <artifactId>nitrite</artifactId>
             <version>3.4.4</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-catalyst -->
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-catalyst_2.12</artifactId>
-            <version>3.2.0</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core -->
@@ -168,6 +163,9 @@
             <artifactId>jackson-annotations</artifactId>
             <version>2.12.7</version>
         </dependency>
+
+
+
     </dependencies>
 
     <build>
