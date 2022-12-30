@@ -2,7 +2,6 @@ package org.squerall
 
 import com.google.common.collect.ArrayListMultimap
 import com.mongodb.spark.config.ReadConfig
-import com.mongodb.spark.sql.toSparkSessionFunctions
 import com.typesafe.scalalogging.Logger
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
@@ -13,10 +12,12 @@ import java.util
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.reflect.io.Directory
+import java.io.File
 
-class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecutor[DataFrame] {
+class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) extends QueryExecutor[DataFrame] {
 
-  val logger = Logger("Squerall")
+  val logger: Logger = Logger("Squerall")
 
   def getType: DataFrame = {
     val dataframe: DataFrame = null
@@ -37,7 +38,12 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
             joinPairs: Map[(String, String), String]
            ): (DataFrame, Integer, String) = {
 
-    val spark = SparkSession.builder.master(sparkURI).appName("Squerall").getOrCreate
+    val spark = SparkSession
+      .builder
+      .master(sparkURI)
+      .appName("Squerall").getOrCreate
+
+
     spark.conf.set(s"spark.sql.catalog.productCat", "com.datastax.spark.connector.datasource.CassandraCatalog")
     //TODO: get from the function if there is a relevant data source that requires setting config to SparkSession
 
@@ -87,20 +93,15 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
         case "csv" => df = spark.read.options(options).csv(sourcePath)
         case "parquet" => df = spark.read.options(options).parquet(sourcePath)
         case "cassandra" =>
-          //df = spark.read.format("org.apache.spark.sql.cassandra").options(options).load
-          //df = spark.read.cassandraFormat.options(options).load()
           df = spark.read.table("productCat.db.product")
         case "elasticsearch" =>
           df = spark.read.format("org.elasticsearch.spark.sql").options(options).load
         case "mongodb" =>
-          //spark.conf.set("spark.mongodb.input.uri", "mongodb://127.0.0.1/test.myCollection")
           val values = options.values.toList
           val mongoConf = if (values.length == 4) makeMongoURI(values(0), values(1), values(2), values(3))
           else makeMongoURI(values(0), values(1), values(2), null)
-          //  val mongoOptions: ReadConfig = ReadConfig(Map("uri" -> mongoConf, "partitioner" -> "MongoPaginateBySizePartitioner"))
-          //  df = spark.read.format("com.mongodb.spark.sql").options(mongoOptions.asOptions).load
-
-          df = spark.loadFromMongoDB(ReadConfig(Map("uri" -> "mongodb://127.0.0.1/bsbm.offers")))
+          val mongoOptions: ReadConfig = ReadConfig(Map("uri" -> mongoConf, "partitioner" -> "MongoPaginateBySizePartitioner"))
+          df = spark.read.format("com.mongodb.spark.sql").options(mongoOptions.asOptions).load
         case "jdbc" =>
           df = spark.read.format("jdbc").options(options).load()
         case "rdf" =>
@@ -564,10 +565,11 @@ class SparkExecutor(sparkURI: String, mappingsFile: String) extends QueryExecuto
     schema.foreach(col => {
       columns += col.name
     })
-    df.write.mode(SaveMode.Overwrite).json("/home/sali/result")
+    val directory = new Directory(new File(outputPath))
+    directory.deleteRecursively()
+    df.limit(50).rdd.saveAsTextFile(outputPath)
     println(columns.mkString(","))
     df.take(20).foreach(x => println(x))
-
     println(s"Number of results: ${jDF.asInstanceOf[DataFrame].count()}")
   }
 }
