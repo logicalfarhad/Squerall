@@ -4,7 +4,6 @@ import com.google.common.collect.ArrayListMultimap
 import com.typesafe.scalalogging.Logger
 import org.apache.spark.sql.DataFrame
 import org.squerall.Helpers._
-import org.squerall.DataQueryFrame
 
 import java.sql.DriverManager
 import java.util
@@ -165,9 +164,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
     val it = joins.entries.iterator
 
-    while (it.hasNext) {
-      val entry = it.next
-
+    joins.entries.forEach(entry => {
       val table1 = entry.getKey
       val table2 = entry.getValue._1
       val jVal = entry.getValue._2
@@ -179,8 +176,6 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
       val ns = prefixes(njVal._1)
 
       logger.info("njVal: " + ns)
-
-      it.remove()
 
       if (firstTime) { // First time look for joins in the join hashmap
         logger.info("...that's the FIRST JOIN")
@@ -221,7 +216,8 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
         }
         // TODO: add case of if dfs_only.contains(table1) && dfs_only.contains(table2)
       }
-    }
+    })
+
 
     while (pendingJoins.nonEmpty) {
       logger.info("ENTERED QUEUED AREA: " + pendingJoins)
@@ -256,8 +252,7 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
       pendingJoins = pendingJoins.tail
     }
-
-    for (sdf <- star_df) { // Even though we added those before we need to get them and add them to the big finalDataSet
+    star_df.foreach(sdf => { // Even though we added those before we need to get them and add them to the big finalDataSet
       val selects = sdf._2.asInstanceOf[DataQueryFrame].getSelects.head
 
       // head of (0) because one star has one select, it's the whole join star that contains multiple selects
@@ -270,7 +265,8 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
 
       val transformations = sdf._2.asInstanceOf[DataQueryFrame].getTransform
       if (transformations.nonEmpty) jDQF.addTransformations(transformations)
-    }
+    })
+
 
     jDQF
   }
@@ -343,14 +339,11 @@ class PrestoExecutor(prestoURI: String, mappingsFile: String) extends QueryExecu
     this.show(jDF)
 
     // example prestoURI = "jdbc:presto://localhost:8080"
-
-    print("\n Farhad Test")
     val connection = DriverManager.getConnection(prestoURI, "presto_user", null) // null: properties
     print(prestoURI)
 
     try {
 
-      print("\n Farhad Test Init")
       val st = connection.createStatement
       val resultSet = st.executeQuery(query)
 

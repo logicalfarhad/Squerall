@@ -34,7 +34,7 @@ object Helpers {
     URIBits(URIBits.length - 1)
   }
 
-  def getNamespaceFromURI(URI: String): String = {
+  def getNamespaceFromURI(): String = {
     "" // TODO: create
   }
 

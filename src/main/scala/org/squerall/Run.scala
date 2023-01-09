@@ -14,7 +14,7 @@ class Run[A](executor: QueryExecutor[A]) {
 
   private var finalDataSet: A = _
 
-  def application(queryFile: String, mappingsFile: String, configFile: String, executorID: String) {
+  def application(queryFile: String, mappingsFile: String, configFile: String): Unit = {
 
     val logger = Logger("Squerall")
 
@@ -45,16 +45,17 @@ class Run[A](executor: QueryExecutor[A]) {
     // Create a map between the variable and its star and predicate URL [variable -> (star,predicate)]
     // Need e.g. to create the column to 'SQL ORDER BY' from 'SPARQL ORDER BY'
     var variablePredicateStar: Map[String, (String, String)] = Map()
-    for (v <- stars._1) {
+    stars._1.foreach(v => {
       val star = v._1
       val predicate_variable_set = v._2
-      for (pv <- predicate_variable_set) {
+      predicate_variable_set.foreach(pv => {
         val predicate = pv._1
         val variable = pv._2
-
         variablePredicateStar += (variable -> (star, predicate))
-      }
-    }
+      })
+
+    })
+
 
     logger.info(s"Predicate Star: $variablePredicateStar")
 
@@ -94,7 +95,7 @@ class Run[A](executor: QueryExecutor[A]) {
 
     logger.info("--> Needed predicates all: " + neededPredicatesAll)
 
-    var star_df: Map[String, A] = Map.empty
+    var star_df: Map[String, A] = Map()
     var starNbrFilters: Map[String, Integer] = Map()
 
     var starDataTypesMap: Map[String, mutable.Set[String]] = Map()
@@ -102,7 +103,7 @@ class Run[A](executor: QueryExecutor[A]) {
 
     logger.info("---> GOING NOW TO COLLECT DATA")
 
-    for (s <- results) {
+    results.foreach(s => {
       val star = s._1
       logger.info("star: " + star)
       val dataSources = s._2
@@ -111,13 +112,11 @@ class Run[A](executor: QueryExecutor[A]) {
       val dataTypes = dataSources.map(d => d._3)
 
       // 'Mappings' transformations
-      for (ds <- dataSources) {
+      dataSources.foreach(ds => {
         val transformations = ds._4
-
         if (transformations.nonEmpty)
           transformExist = true
-
-        for (t <- transformations) {
+        transformations.foreach(t => {
           logger.info("Visiting transformation related to predicate: " + t._1 + " =  " + t._2)
           val fncParamBits = t._2._1.split(" ")
           val fncName = fncParamBits(0)
@@ -145,8 +144,9 @@ class Run[A](executor: QueryExecutor[A]) {
                 transformationsInLine += s"($fncParam)"
             }
           )
-        }
-      }
+        })
+      })
+
 
       if (transformationsInLine != "")
         logger.info(s"Transformations found (inline): $transformationsInLine")
@@ -205,7 +205,8 @@ class Run[A](executor: QueryExecutor[A]) {
 
         logger.info("single...with ParSet schema: " + ds)
       }
-    }
+    })
+
 
     logger.info("QUERY EXECUTION starting...*/")
     logger.info(s"DataFrames: $star_df")
@@ -247,32 +248,34 @@ class Run[A](executor: QueryExecutor[A]) {
     // Project out columns from the final global join results
     var columnNames = Seq[String]()
     logger.info(s"--> Needed predicates select: $neededPredicatesSelect")
-    for (i <- neededPredicatesSelect) {
+
+    neededPredicatesSelect.foreach(i => {
       val star = i._1
       val ns_predicate = i._2
       val bits = get_NS_predicate(ns_predicate)
 
       val selected_predicate = omitQuestionMark(star) + "_" + bits._2 + "_" + prefixes(bits._1) // TODO: this is recurrent, need to create a (helping) method for it
       columnNames = columnNames :+ selected_predicate
-    }
+    })
+
 
     // Add subjects
-    for (i <- parsetIDs) {
-      val star = i._1
-      val parsetID = i._2
 
+    parsetIDs.foreach(i => {
+      val star = i._1
       columnNames = columnNames :+ s"${omitQuestionMark(star)}"
-    }
+    })
+
 
     if (groupBys != null) {
       logger.info(s"groupBys: $groupBys")
       finalDataSet = executor.groupBy(finalDataSet, groupBys)
 
       // Add aggregation columns to the final project ones
-      for (gb <- groupBys._2) {
+      groupBys._2.foreach(gb => {
         logger.info("-> Add to Project list:" + gb._2)
         columnNames = columnNames :+ gb._2 + "(" + gb._1 + ")"
-      }
+      })
     }
 
     logger.info(s"--> SELECTED column names: $columnNames") // TODO: check the order of PROJECT and ORDER-BY
@@ -281,23 +284,25 @@ class Run[A](executor: QueryExecutor[A]) {
       logger.info(s"orderBys: $orderBys")
 
       var orderByList: Set[(String, String)] = Set()
-      for (o <- orderBys) {
+
+      orderBys.foreach(o => {
         val orderDirection = o._1
         val str = variablePredicateStar(o._2)._1
         val vr = variablePredicateStar(o._2)._2
         val ns_p = get_NS_predicate(vr)
         val column = omitQuestionMark(str) + "_" + ns_p._2 + "_" + prefixes(ns_p._1)
         orderByList += ((column, orderDirection))
-      }
+      })
+
 
       logger.info(s"ORDER BY list: $orderByList (-1 ASC, -2 DESC)") // TODO: (-1 ASC, -2 DESC) confirm with multiple order-by's
 
-      for (o <- orderByList) {
+      orderByList.foreach(o => {
         val variable = o._1
         val direction = o._2
-
         finalDataSet = executor.orderBy(finalDataSet, direction, variable)
-      }
+      })
+
     }
 
     logger.info("|__ Has distinct? " + distinct)

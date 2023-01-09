@@ -84,19 +84,13 @@ class Planner(stars: mutable.HashMap[String, mutable.Set[(String, String)]] with
   }
 
   def reorder(joins: ArrayListMultimap[String, (String, String)], starWeights: Map[String, Double]): ListMap[(String, String), Double] = {
-
     logger.info("...REORDERING JOINS, if needed...")
-
     val joinsToReorder: ListBuffer[(String, String)] = ListBuffer()
-
     joins.entries().forEach(j => {
       joinsToReorder += ((j.getKey, j.getValue._1))
     })
-
     val scoredJoins = getScoredJoins(joins, starWeights)
-
     val sortedScoredJoins = ListMap(scoredJoins.toSeq.sortWith(_._2 > _._2): _*)
-
     sortedScoredJoins
   }
 

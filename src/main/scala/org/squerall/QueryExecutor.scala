@@ -6,11 +6,6 @@ import com.google.common.collect.ArrayListMultimap
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
-/**
-  * Created by mmami on 07.03.18.
-  */
-
 trait QueryExecutor[T] { // T is a ParSet (Parallel dataSet)
 
     /* Generates a ParSet with the number of filters (on predicates) in the star */

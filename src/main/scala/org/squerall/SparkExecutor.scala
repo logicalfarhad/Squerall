@@ -8,12 +8,12 @@ import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.{AnalysisException, Column, DataFrame, SaveMode, SparkSession}
 import org.squerall.Helpers._
 
+import java.io.File
 import java.util
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.io.Directory
-import java.io.File
 
 class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) extends QueryExecutor[DataFrame] {
 
@@ -42,16 +42,13 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
       .builder
       .master(sparkURI)
       .appName("Squerall").getOrCreate
-
-
-    spark.conf.set(s"spark.sql.catalog.productCat", "com.datastax.spark.connector.datasource.CassandraCatalog")
     //TODO: get from the function if there is a relevant data source that requires setting config to SparkSession
 
     var finalDF: DataFrame = null
     var dataSource_count = 0
     var parSetId = "" // To use when subject (thus ID) is projected out in SELECT
 
-    for (s <- sources) {
+    sources.foreach(s => {
       logger.info("NEXT SOURCE...")
       dataSource_count += 1 // in case of multiple relevant data sources to union
 
@@ -90,16 +87,16 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
 
       var df: DataFrame = null
       sourceType match {
-        case "csv" => df = spark.read.options(options).csv(sourcePath)
-        case "parquet" => df = spark.read.options(options).parquet(sourcePath)
+        case "csv" => df = spark.read.options(options).csv("hdfs://localhost:9000" + sourcePath)
+        case "parquet" => df = spark.read.options(options).parquet("hdfs://localhost:9000" + sourcePath)
         case "cassandra" =>
-          df = spark.read.table("productCat.db.product")
+          df = spark.read.format("org.apache.spark.sql.cassandra").options(options).load
         case "elasticsearch" =>
           df = spark.read.format("org.elasticsearch.spark.sql").options(options).load
         case "mongodb" =>
           val values = options.values.toList
-          val mongoConf = if (values.length == 4) makeMongoURI(values(0), values(1), values(2), values(3))
-          else makeMongoURI(values(0), values(1), values(2), null)
+          val mongoConf = if (values.length == 4) makeMongoURI(values.head, values(1), values(2), values(3))
+          else makeMongoURI(values.head, values(1), values(2), null)
           val mongoOptions: ReadConfig = ReadConfig(Map("uri" -> mongoConf, "partitioner" -> "MongoPaginateBySizePartitioner"))
           df = spark.read.format("com.mongodb.spark.sql").options(mongoOptions.asOptions).load
         case "jdbc" =>
@@ -122,7 +119,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
           finalDF = finalDF.union(newDF)
         }
       } catch {
-        case ae: AnalysisException => val logger = println("ERROR: There is a mismatch between the mappings, query and/or data. " +
+        case ae: AnalysisException => val logger: Unit = println("ERROR: There is a mismatch between the mappings, query and/or data. " +
           "Examples: Check `rr:reference` references a correct attribute, or if you have transformations, " +
           "Check `rml:logicalSource` is the same between the TripleMap and the FunctionMap. Check if you are " +
           "SELECTing a variable used in the graph patterns. Returned error is:\n" + ae)
@@ -145,7 +142,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
         val col = str + "_ID"
         finalDF = transform(finalDF, col, rightJoinTransformations)
       }
-    }
+    })
+
 
     logger.info("- filters: " + filters + " for star " + star)
 
@@ -153,9 +151,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
 
     var nbrOfFiltersOfThisStar = 0
 
-    val it = filters.keySet().iterator()
-    while (it.hasNext) {
-      val value = it.next()
+
+    filters.keySet().forEach(value => {
       val predicate = star_predicate_var.
         filter(t => t._2 == value).
         keys. // To obtain (star, predicate) pairs having as value the FILTER'ed value
@@ -169,9 +166,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
 
         nbrOfFiltersOfThisStar = filters.get(value).size()
 
-        val conditions = filters.get(value).iterator()
-        while (conditions.hasNext) {
-          val operand_value = conditions.next()
+        //  val conditions = filters.get(value).iterator()
+        filters.get(value).forEach(operand_value => {
           logger.info("--- Operand - Value: " + operand_value)
           whereString = column + operand_value._1 + operand_value._2
           logger.info("--- WHERE string: " + whereString)
@@ -180,15 +176,18 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
             try {
               finalDF = finalDF.filter(whereString)
             } catch {
-              case ae: NullPointerException => val logger = println("ERROR: No relevant source detected.")
+              case _: NullPointerException =>
                 System.exit(1)
             }
           } else
             finalDF = finalDF.filter(finalDF(column).like(operand_value._2.replace("\"", "")))
           // regular expression with _ matching an arbitrary character and % matching an arbitrary sequence
-        }
+        })
+
+
       }
-    }
+    })
+
 
     logger.info(s"Number of filters of this star is: $nbrOfFiltersOfThisStar")
 
@@ -202,7 +201,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
   def transform(df: Any, column: String, transformationsArray: Array[String]): DataFrame = {
 
     var ndf: DataFrame = df.asInstanceOf[DataFrame]
-    for (t <- transformationsArray) {
+
+    transformationsArray.foreach(t => {
       logger.info("Transformation next: " + t)
       t match {
         case "toInt" =>
@@ -245,8 +245,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
           ndf = ndf.withColumn(column, concat(lit(ndf.col(column), postfix)))
         case _ =>
       }
-    }
-
+    })
     ndf
   }
 
@@ -259,12 +258,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
     val join = " x "
     var jDF: DataFrame = null
 
-    val it = joins.entries.iterator
-    while ( {
-      it.hasNext
-    }) {
-      val entry = it.next
 
+    joins.entries().forEach(entry => {
       val op1 = entry.getKey
       val op2 = entry.getValue._1
       val jVal = entry.getValue._2
@@ -275,7 +270,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
       val njVal = get_NS_predicate(jVal)
       val ns = prefixes(njVal._1)
 
-      it.remove()
+      // it.remove()
 
       val df1 = star_df(op1)
       val df2 = star_df(op2)
@@ -321,7 +316,8 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
           pendingJoins.enqueue((op1, (op2, jVal)))
         }
       }
-    }
+    })
+
 
     while (pendingJoins.nonEmpty) {
       logger.info("ENTERED QUEUED AREA: " + pendingJoins)
@@ -567,9 +563,9 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
     })
     val directory = new Directory(new File(outputPath))
     directory.deleteRecursively()
-    df.limit(50).rdd.saveAsTextFile(outputPath)
-    println(columns.mkString(","))
-    df.take(20).foreach(x => println(x))
+    df.limit(50).coalesce(1).write.mode(SaveMode.Overwrite)
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+      .json(outputPath)
     println(s"Number of results: ${jDF.asInstanceOf[DataFrame].count()}")
   }
 }

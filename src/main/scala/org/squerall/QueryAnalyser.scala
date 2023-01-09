@@ -11,10 +11,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-/**
- * Created by mmami on 05.07.17.
- */
-
 class QueryAnalyser(query: String) {
 
   val logger: Logger = Logger("Squerall")
