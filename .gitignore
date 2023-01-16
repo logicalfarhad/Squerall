@@ -7,7 +7,7 @@
 *.iws
 *.orig
 *.rej
-*.idea
+*.idea\
 .svn
 .classpath
 .project

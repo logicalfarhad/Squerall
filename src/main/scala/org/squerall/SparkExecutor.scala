@@ -206,7 +206,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
       logger.info("Transformation next: " + t)
       t match {
         case "toInt" =>
-          logger.info("TOINT found")
+          logger.info("TO INT found")
           ndf = ndf.withColumn(column, ndf(column).cast(IntegerType))
         // From SO: values not castable will become null
         case s if s.contains("scl") =>
@@ -392,7 +392,6 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
     logger.info("...done!")
 
     var joinsMap: Map[(String, String), String] = Map()
-
     joins.entries().asScala.foreach(jj => {
       joinsMap += (jj.getKey, jj.getValue._1) -> jj.getValue._2
     })
@@ -408,7 +407,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
       val dfs_only = seenDF.map(_._1)
       logger.info(s"-> Looking for join(s) that join(s) with: $dfs_only")
 
-      var joinable: Map[(String, String), String] = Map.empty // or Map()
+      var joinable: Map[(String, String), String] = Map() // or Map()
 
       joinsMap.foreach(entry => {
         val op1 = entry._1._1
@@ -566,6 +565,7 @@ class SparkExecutor(sparkURI: String, mappingsFile: String, outputPath: String) 
     df.limit(50).coalesce(1).write.mode(SaveMode.Overwrite)
       .option("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
       .json(outputPath)
+    df.take(50).foreach(x => println(x))
     println(s"Number of results: ${jDF.asInstanceOf[DataFrame].count()}")
   }
 }
